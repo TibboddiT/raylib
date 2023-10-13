@@ -107,3 +107,6 @@ docgen_tmp/
 
 # Parser stuff
 parser/raylib_parser
+
+# Zig build stuff
+src/raygui.c
