@@ -1,12 +1,14 @@
 const std = @import("std");
 
 // This has been tested to work with zig master branch as of commit 87de821 or May 14 2023
-pub fn addRaylib(b: *std.Build, target: std.zig.CrossTarget, optimize: std.builtin.OptimizeMode, options: Options) *std.Build.CompileStep {
+pub fn addRaylib(b: *std.Build, targetQuery: std.Target.Query, optimize: std.builtin.OptimizeMode, options: Options) *std.Build.Step.Compile {
     const raylib_flags = &[_][]const u8{
         "-std=gnu99",
         "-D_GNU_SOURCE",
         "-DGL_SILENCE_DEPRECATION=199309L",
     };
+
+    const target = b.resolveTargetQuery(targetQuery);
 
     const raylib = b.addStaticLibrary(.{
         .name = "raylib",
@@ -56,7 +58,7 @@ pub fn addRaylib(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         }, .flags = raylib_flags });
     }
 
-    var gen_step = std.build.Step.WriteFile.create(b);
+    var gen_step = std.Build.Step.WriteFile.create(b);
     raylib.step.dependOn(&gen_step.step);
 
     if (options.raygui) {
@@ -66,7 +68,7 @@ pub fn addRaylib(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
         raylib.addIncludePath(.{ .path = srcdir ++ "/../../raygui/src" });
     }
 
-    switch (target.getOsTag()) {
+    switch (target.result.os.tag) {
         .windows => {
             raylib.addCSourceFiles(.{ .files = &.{srcdir ++ "/rglfw.c"}, .flags = raylib_flags });
             raylib.linkSystemLibrary("winmm");
@@ -85,6 +87,7 @@ pub fn addRaylib(b: *std.Build, target: std.zig.CrossTarget, optimize: std.built
                 raylib.linkSystemLibrary("m");
                 raylib.linkSystemLibrary("X11");
                 raylib.addLibraryPath(.{ .path = "/usr/lib" });
+                raylib.addLibraryPath(.{ .path = "/usr/lib/x86_64-linux-gnu" });
                 raylib.addIncludePath(.{ .path = "/usr/include" });
 
                 raylib.defineCMacro("PLATFORM_DESKTOP", null);
@@ -194,7 +197,7 @@ pub fn build(b: *std.Build) void {
         .raygui = b.option(bool, "raygui", "Compile with raygui support") orelse defaults.raygui,
     };
 
-    const lib = addRaylib(b, target, optimize, options);
+    const lib = addRaylib(b, target.query, optimize, options);
 
     lib.installHeader("src/raylib.h", "raylib.h");
     lib.installHeader("src/raymath.h", "raymath.h");
